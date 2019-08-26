@@ -1,6 +1,22 @@
 # The TTC 2019 TT2BDD ATL Zoo Case
 
-## Case description
+## Solutions
+
+**Please note** that unfortunately - like the provided ATL solution - the solutions cannot be started directly using MS Windows, since they use `cd ../dir && ./gradlew`. If only Windows is available, these commands have to be adapted.
+
+### JastAdd Relational RAGs Solution
+
+The solution can be found at [solutions/RelationalRAGSolution](https://git-st.inf.tu-dresden.de/ttc/bdd/tree/master/solutions/RelationalRAGSolution).
+All variants described in the [paper](http://www.transformation-tool-contest.eu/papers/TTC19_paper_4.pdf) are started from separate subfolders with a solution-specific suffix.
+
+If there are problems, please submit an issue or write to johannes.mey@tu-dresden.de
+
+### SCROLL RSYNC Solution
+
+The solution can be found at [solutions/RSYNC](https://git-st.inf.tu-dresden.de/ttc/bdd/tree/master/solutions/RSync).
+All variants described in the [paper](http://www.transformation-tool-contest.eu/papers/TTC19_paper_6.pdf) are started from separate subfolders with a solution-specific suffix.
+
+If there are problems, please submit an issue or write to christopher.werner@tu-dresden.de
 
 ## Prerequisites
 
@@ -10,7 +26,12 @@
 
 ## Solution Prerequisites
 
-Add your prerequisites here!
+The relational RAG solutions use Gradle as build tool. Thus there are no extra prerequisites.
+
+However, in order to run the RSYNC solutions, the following tools are necessary:
+
+* Scala (optional, will be downloaded automatically via SBT if not present)
+* [SBT](https://www.scala-sbt.org/) 1.x
 
 ## Using the framework
 
@@ -30,17 +51,12 @@ The `config` directory contains the configuration for the scripts:
 * `config.json` -- configuration for the model generation and the benchmark
   * *Note:* the timeout as set in the benchmark configuration (default: 6000 seconds) applies to the gross cumulative runtime of the tool for a given changeset and update sequences. This also includes e.g. Initialization time which is not required by the benchmark framework to be measured.
     Timeout is only applied to the solutions' run phase (see `-m` for `run.py`), so it is not applied to e.g. the build phase (see `-b` for `run.py`).
-* `reporting.json` -- configuration for the visualization
 
 ### Running the benchmark
 
 The script runs the benchmark for the given number of runs, for the specified tools and input models.
 
 The benchmark results are stored in a CSV file. The header for the CSV file is stored in the `output/header.csv` file.
-
-## Reporting and visualization
-
-Make sure you read the `README.md` file in the `reporting` directory and install all the requirements for R.
 
 ## Implementing the benchmark for a new tool
 

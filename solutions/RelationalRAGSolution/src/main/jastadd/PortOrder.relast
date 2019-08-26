@@ -1,0 +1,3 @@
+PortOrder;
+rel TruthTable.PortOrder -> PortOrder ;
+rel PortOrder.Port* -> InputPort;

@@ -7,7 +7,6 @@ import argparse
 import os
 import shutil
 import subprocess
-import sys
 try:
     import ConfigParser
 except ImportError:
@@ -17,6 +16,7 @@ from subprocess import CalledProcessError
 
 BASE_DIRECTORY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 print("Running benchmark with root directory " + BASE_DIRECTORY)
+
 
 class JSONObject(object):
     def __init__(self, d):
@@ -44,29 +44,54 @@ def benchmark(conf):
     header = os.path.join(BASE_DIRECTORY, "output", "header.csv")
     result_file = os.path.join(BASE_DIRECTORY, "output", "output.csv")
     if os.path.exists(result_file):
-        os.remove(result_file)
-    shutil.copy(header, result_file)
+        with open(result_file, "a") as file:
+            # append a separator line
+            from datetime import datetime
+            file.write('-' * 30 + ' New measurement started at ' + datetime.now().isoformat() + ' ' + '-' * 30 + '\n')
+    else:
+        shutil.copy(header, result_file)
+        # os.remove(result_file)
     os.environ['Runs'] = str(conf.Runs)
+
+    # by default we test every model for every tool
+    available_models = { tool : conf.Models for tool in conf.Tools }
+
     for r in range(0, conf.Runs):
         os.environ['RunIndex'] = str(r)
+        print("## Run {}".format(r))
+
         for tool in conf.Tools:
             config = ConfigParser.ConfigParser()
             config.read(os.path.join(BASE_DIRECTORY, "solutions", tool, "solution.ini"))
             set_working_directory("solutions", tool)
             os.environ['Tool'] = tool
-            for model in conf.Models:
+
+            print('# Available models for {tool} are {models}'.format(tool=tool, models=available_models[tool]))
+
+            for model in available_models[tool]:
                 full_model_path = os.path.abspath(os.path.join(BASE_DIRECTORY, "models", model))
                 os.environ['Model'] = model
                 os.environ['ModelPath'] = full_model_path
                 print("Running benchmark: tool = " + tool + ", model = " + full_model_path)
+
                 try:
                     output = subprocess.check_output(config.get('run', 'cmd'), shell=True, timeout=conf.Timeout)
                     with open(result_file, "ab") as file:
                         file.write(output)
                 except CalledProcessError as e:
                     print("Program exited with error")
+                    print('stdout:')
+                    print(e.output)
+                    print('stderr:')
+                    print(e.stderr)
                 except subprocess.TimeoutExpired as e:
                     print("Program reached the timeout set ({0} seconds). The command we executed was '{1}'".format(e.timeout, e.cmd))
+
+                    # if a tool failed running some model we remove that model as well as all "stronger" models
+                    failed_model_idx = conf.Models.index(model)
+                    available_models[tool] = conf.Models[ : failed_model_idx]
+                    print('# Ignoring models {models} for tool {tool} in the future'.format(models=conf.Models[failed_model_idx : ], tool=tool))
+                    break
 
 
 def clean_dir(*path):
@@ -79,6 +104,16 @@ def clean_dir(*path):
 def set_working_directory(*path):
     dir = os.path.join(BASE_DIRECTORY, *path)
     os.chdir(dir)
+
+
+def visualize():
+    """
+    Visualizes the benchmark results
+    """
+    clean_dir("diagrams")
+    set_working_directory("reporting")
+    subprocess.call(["Rscript", "visualize.R", os.path.join(BASE_DIRECTORY, "config", "reporting.json")])
+    subprocess.call(["Rscript", "memory.R"])
 
 
 if __name__ == "__main__":
@@ -95,6 +130,9 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--extract",
                         help="extract results",
                         action="store_true")
+    parser.add_argument("-v", "--visualize",
+                        help="create visualizations",
+                        action="store_true")
     parser.add_argument("-t", "--test",
                         help="run test",
                         action="store_true")
@@ -103,23 +141,25 @@ if __name__ == "__main__":
                         action="store_true")
     args = parser.parse_args()
 
-
     set_working_directory("config")
     with open("config.json", "r") as config_file:
-        config = json.load(config_file, object_hook = JSONObject)
+        config = json.load(config_file, object_hook=JSONObject)
 
     if args.debug:
         os.environ['Debug'] = 'true'
     if args.build:
         build(config, args.skip_tests)
-    if args.measure:
-        benchmark(config)
     if args.test:
         build(config, False)
+    if args.measure:
+        benchmark(config)
+    if args.visualize:
+        visualize()
 
     # if there are no args, execute a full sequence
     # with the test and the visualization/reporting
-    no_args = all(val==False for val in vars(args).values())
+    no_args = all(val is False for val in vars(args).values())
     if no_args:
         build(config, False)
         benchmark(config)
+        visualize()
